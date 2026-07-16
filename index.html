@@ -1,0 +1,1226 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>樂活小農夫：數學鴨鴨與機器人</title>
+    <!-- 引入 Tailwind CSS 提供精美現代的 UI 樣式 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 FontAwesome 圖標 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts 引入圓潤可愛的字體，非常適合兒童 -->
+    <link href="https://fonts.googleapis.com/css2?family=Cherry+Bomb+One&family=Noto+Sans+TC:wght@400;700;900&family=Zilla+Slab+Highlight&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Noto Sans TC', 'Cherry Bomb One', sans-serif;
+            background-color: #e0f2fe; /* 淺藍色背景，模擬天空 */
+            user-select: none;
+            -webkit-user-select: none;
+            overflow: hidden;
+            touch-action: none;
+        }
+        /* 隱藏手機端長按彈出選單 */
+        img, canvas, button, a {
+            -webkit-touch-callout: none;
+        }
+        /* 柔和發光效果 */
+        .neon-glow-sun {
+            text-shadow: 0 0 10px rgba(253, 224, 71, 0.8), 0 0 20px rgba(253, 224, 71, 0.4);
+        }
+        .text-cherry {
+            font-family: 'Cherry Bomb One', cursive;
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-center min-h-screen p-2 md:p-4 text-slate-800">
+
+    <!-- 遊戲主容器，背景改為淺藍色天空 -->
+    <div class="relative w-full max-w-4xl bg-sky-100 border-8 border-amber-300 rounded-3xl overflow-hidden shadow-2xl flex flex-col items-center">
+        
+        <!-- 頂部資訊欄 (Score, Level, HP) -->
+        <div class="absolute top-0 left-0 right-0 z-10 flex justify-between items-center px-6 py-3 bg-white/70 backdrop-blur-md border-b-4 border-amber-200">
+            <!-- 分數與關卡 -->
+            <div class="flex items-center space-x-6">
+                <div>
+                    <span class="text-xs text-green-700 block tracking-wider uppercase font-bold">得分</span>
+                    <span id="score-val" class="text-2xl md:text-3xl font-black text-amber-500 text-cherry neon-glow-sun">0</span>
+                </div>
+                <div>
+                    <span class="text-xs text-sky-700 block tracking-wider uppercase font-bold">難度</span>
+                    <span id="level-val" class="text-2xl md:text-3xl font-black text-sky-600 text-cherry">1</span>
+                </div>
+            </div>
+
+            <!-- 標題 -->
+            <div class="text-center hidden md:block">
+                <h1 class="text-xl font-black text-cherry bg-gradient-to-r from-amber-500 via-green-600 to-amber-500 bg-clip-text text-transparent">
+                    🌾 樂活小農夫
+                </h1>
+                <p class="text-[10px] text-green-600 font-bold uppercase tracking-widest">數學鴨鴨與機器人</p>
+            </div>
+
+            <!-- 生命值 (愛心改成小草或花朵圖示) -->
+            <div class="flex flex-col items-end">
+                <span class="text-xs text-red-700 block tracking-wider uppercase mb-1 font-bold">護衛機會</span>
+                <div id="hearts-container" class="flex space-x-1.5 text-xl md:text-2xl text-red-500">
+                    <i class="fa-solid fa-seedling animate-pulse"></i>
+                    <i class="fa-solid fa-seedling animate-pulse"></i>
+                    <i class="fa-solid fa-seedling animate-pulse"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- 遊戲畫布 (Canvas) -->
+        <canvas id="gameCanvas" class="w-full bg-sky-100 block" style="aspect-ratio: 16/9;"></canvas>
+
+        <!-- 觸控控制台 -->
+        <div id="mobile-controls" class="absolute bottom-4 left-4 right-4 z-10 flex justify-between items-end pointer-events-none">
+            <!-- 左側：虛擬搖桿 -->
+            <div class="pointer-events-auto bg-white/50 p-2 rounded-full border border-amber-300 backdrop-blur-sm shadow-inner">
+                <div id="joystick-boundary" class="w-28 h-28 bg-white/80 rounded-full border-4 border-amber-400 flex items-center justify-center relative touch-none">
+                    <div id="joystick-knob" class="w-12 h-12 bg-gradient-to-br from-amber-400 to-orange-500 rounded-full shadow-lg absolute transition-all duration-75 cursor-pointer"></div>
+                </div>
+            </div>
+
+            <!-- 提示操作說明 (電腦端可用) -->
+            <div class="hidden md:flex flex-col items-center bg-white/80 px-4 py-2 rounded-xl border border-amber-200 pointer-events-auto shadow-inner">
+                <p class="text-xs text-green-700 font-bold"><i class="fa-keyboard mr-1 text-amber-500"></i> 移動＆瞄準秘籍</p>
+                <p class="text-[11px] text-green-800 mt-1">【W A S D】上下移動，【空白鍵/滑鼠點擊】射擊小鴨</p>
+            </div>
+
+            <!-- 右側：射擊按鈕與音量 -->
+            <div class="pointer-events-auto flex flex-col space-y-2">
+                <!-- 靜音按鈕 -->
+                <button id="mute-btn" class="self-end bg-white/70 border-2 border-amber-300 w-10 h-10 rounded-full flex items-center justify-center text-amber-500 hover:text-amber-600 transition shadow-lg hover:shadow-xl">
+                    <i class="fa-solid fa-volume-high" id="mute-icon"></i>
+                </button>
+                <!-- 射擊按鈕 -->
+                <button id="btn-shoot" class="w-24 h-24 bg-gradient-to-br from-amber-400 to-amber-600 active:scale-95 active:from-amber-500 active:to-amber-700 border-4 border-amber-100 rounded-full flex flex-col items-center justify-center shadow-lg transform transition active:shadow-inner">
+                    <i class="fa-solid fa-crosshairs text-3xl text-white"></i>
+                    <span class="text-[10px] font-black text-white uppercase tracking-wider mt-1 text-cherry">發射</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- 遊戲開始 / 結束 / 暫停等彈窗 (Modal Overlay) -->
+        <div id="modal-overlay" class="absolute inset-0 bg-sky-100/95 z-20 flex flex-col items-center justify-center p-6 text-center">
+            <!-- 開始遊戲畫面 -->
+            <div id="start-screen" class="space-y-6 max-w-md">
+                <div class="w-24 h-24 mx-auto bg-white rounded-full border-4 border-amber-400 flex items-center justify-center animate-pulse shadow-xl">
+                    <i class="fa-solid fa-seedling text-5xl text-green-500"></i>
+                </div>
+                <h2 class="text-4xl md:text-5xl font-black text-cherry tracking-wide bg-gradient-to-r from-green-600 via-amber-500 to-green-600 bg-clip-text text-transparent">
+                    樂活小農夫!
+                </h2>
+                <p class="text-sm md:text-base text-green-800 leading-relaxed font-bold">
+                    樂活農場遭到了無聊機器人的入侵！<br>
+                    看清機器人頭上的 <span class="text-amber-500 font-bold text-lg text-cherry">數學問題</span>，瞄準牠身上印有 <span class="text-amber-500 font-bold text-lg text-cherry">正確答案</span> 的黃色小鴨靶牌開火！<br>
+                    別讓牠們嚇跑你的小苗喔！
+                </p>
+                <div class="bg-white/60 border border-amber-200 p-4 rounded-xl text-left text-xs md:text-sm space-y-2 text-green-900 font-bold shadow-inner">
+                    <p><strong class="text-amber-600 text-base text-cherry">【操作秘籍】</strong> 鍵盤 WASD / 上下鍵移動，滑鼠點擊任意處射擊。</p>
+                    <p><strong class="text-amber-600 text-base text-cherry">【手機操作】</strong> 左下角搖桿移動，右下角按鈕或直接點選小鴨射擊。</p>
+                </div>
+                <button id="start-game-btn" class="w-full py-4 bg-gradient-to-r from-amber-400 to-amber-600 hover:from-amber-300 hover:to-amber-500 text-lg md:text-2xl font-black text-white rounded-2xl shadow-lg transform hover:scale-105 transition active:scale-95 text-cherry tracking-widest active:shadow-inner">
+                    開啟農場護衛戰 <i class="fa-solid fa-ticket ml-1"></i>
+                </button>
+            </div>
+
+            <!-- 遊戲結束畫面 -->
+            <div id="gameover-screen" class="space-y-6 max-w-md hidden">
+                <div class="text-green-500 text-7xl">
+                    <i class="fa-solid fa-seedling animate-bounce"></i>
+                </div>
+                <h2 class="text-4xl md:text-5xl font-black text-cherry tracking-wider bg-gradient-to-r from-green-600 via-amber-500 to-green-600 bg-clip-text text-transparent">收穫滿滿!</h2>
+                <p class="text-base text-green-800 font-bold">
+                    機器人逃跑了！你保護了農場的小苗，表現得太出色了，下次一定能算得更快、更準確！
+                </p>
+                <div class="grid grid-cols-2 gap-4 py-4">
+                    <div class="bg-white/70 border-2 border-amber-300 p-3 rounded-xl shadow-lg">
+                        <span class="text-xs text-green-700 block font-bold">最終得分</span>
+                        <span id="final-score" class="text-3xl md:text-4xl font-black text-amber-500 text-cherry neon-glow-sun">0</span>
+                    </div>
+                    <div class="bg-white/70 border-2 border-amber-300 p-3 rounded-xl shadow-lg">
+                        <span class="text-xs text-green-700 block font-bold">答對題數</span>
+                        <span id="final-kills" class="text-3xl md:text-4xl font-black text-amber-500 text-cherry">0</span>
+                    </div>
+                </div>
+                <button id="restart-game-btn" class="w-full py-4 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-lg md:text-2xl font-black rounded-2xl shadow-lg transform hover:scale-105 transition active:scale-95 text-white text-cherry tracking-wider">
+                    再挑戰一次 <i class="fa-solid fa-seedling ml-1"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 頁尾宣告與版權 -->
+    <div class="mt-4 text-center text-xs text-amber-900/60 font-bold">
+        <p>© 2026 樂活小農夫 Math Farm-兒童數學卡通射擊遊戲</p>
+    </div>
+
+    <!-- 核心遊戲邏輯 JavaScript -->
+    <script>
+        // === 1. 網頁音效合成器 (Web Audio API) ===
+        // 完全使用瀏覽器合成音效，不需要外部音訊檔案，不嚇到小朋友
+        const AudioSynth = {
+            ctx: null,
+            muted: false,
+
+            init() {
+                if (!this.ctx) {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+            },
+
+            play(type) {
+                if (this.muted) return;
+                this.init();
+                if (this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+
+                try {
+                    switch (type) {
+                        case 'pop': // 開槍聲（氣槍 Pop聲）
+                            this.synthesizePop();
+                            break;
+                        case 'yay': // 答對聲（鈴鐺+歡呼Yay聲）
+                            this.synthesizeYay();
+                            break;
+                        case 'toy_wrong': // 答錯聲（柔和玩具悶沉聲）
+                            this.synthesizeToyWrong();
+                            break;
+                        case 'toy_hurt': // 被撞擊聲（柔和的警報聲）
+                            this.synthesizeToyHurt();
+                            break;
+                        case 'levelup': // 升級音
+                            this.synthesizeLevelUp();
+                            break;
+                    }
+                } catch (e) {
+                    console.log("Audio synth error:", e);
+                }
+            },
+
+            // 開槍聲（氣槍）
+            synthesizePop() {
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.connect(gain); gain.connect(this.ctx.destination);
+                osc.type = 'triangle'; // 柔和一點的锯齿波
+                osc.frequency.setValueAtTime(700, now);
+                osc.frequency.exponentialRampToValueAtTime(10, now + 0.08); // 快速下降
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.08);
+                osc.start(); osc.stop(now + 0.08);
+            },
+
+            // 答對聲 (清脆鈴鐺與人聲 Yay 的感覺)
+            synthesizeYay() {
+                const now = this.ctx.currentTime;
+                // 模擬 Yay 聲的高頻部分
+                const synthYay = (freq, delay) => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.connect(gain); gain.connect(this.ctx.destination);
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(freq, now + delay);
+                    osc.frequency.linearRampToValueAtTime(freq + 50, now + delay + 0.1);
+                    gain.gain.setValueAtTime(0, now + delay);
+                    gain.gain.linearRampToValueAtTime(0.15, now + delay + 0.05);
+                    gain.gain.linearRampToValueAtTime(0, now + delay + 0.2);
+                    osc.start(now + delay); osc.stop(now + delay + 0.2);
+                };
+                synthYay(523.25, 0); // C5
+                synthYay(659.25, 0.05); // E5
+                synthYay(783.99, 0.1); // G5
+            },
+
+            // 答錯聲（柔和玩具悶沉聲）
+            synthesizeToyWrong() {
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.connect(gain); gain.connect(this.ctx.destination);
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(200, now);
+                osc.frequency.linearRampToValueAtTime(100, now + 0.15);
+                gain.gain.setValueAtTime(0.15, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.15);
+                osc.start(); osc.stop(now + 0.15);
+            },
+
+            // 被撞擊聲（柔和的警報聲）
+            synthesizeToyHurt() {
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.connect(gain); gain.connect(this.ctx.destination);
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(300, now);
+                osc.frequency.setValueAtTime(200, now + 0.1);
+                osc.frequency.setValueAtTime(300, now + 0.2);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.3);
+                osc.start(); osc.stop(now + 0.3);
+            },
+
+            synthesizeLevelUp() {
+                const now = this.ctx.currentTime;
+                const notes = [261.63, 329.63, 392.00, 523.25]; // C4, E4, G4, C5
+                notes.forEach((freq, i) => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.connect(gain); gain.connect(this.ctx.destination);
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(freq, now + i * 0.1);
+                    gain.gain.setValueAtTime(0, now + i * 0.1);
+                    gain.gain.linearRampToValueAtTime(0.15, now + i * 0.1 + 0.05);
+                    gain.gain.linearRampToValueAtTime(0, now + i * 0.1 + 0.2);
+                    osc.start(now + i * 0.1); osc.stop(now + i * 0.1 + 0.2);
+                });
+            }
+        };
+
+
+        // === 2. 遊戲核心設定與狀態 ===
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // 設定畫布解析度 (16:9 邏輯分辨率)
+        const GAME_WIDTH = 1200;
+        const GAME_HEIGHT = 675;
+        canvas.width = GAME_WIDTH;
+        canvas.height = GAME_HEIGHT;
+
+        let gameState = {
+            isRunning: false,
+            score: 0,
+            level: 1,
+            hp: 3,
+            maxHp: 3,
+            kills: 0,
+            spawnTimer: 0,
+            spawnInterval: 4800, // 初始生成速度，更慢更柔和
+            lastTime: 0
+        };
+
+        // 玩家小苗防衛者
+        let player = {
+            x: 80,
+            y: GAME_HEIGHT / 2,
+            width: 70,
+            height: 70,
+            speed: 8,
+            vy: 0
+        };
+
+        let bullets = [];
+        let robots = [];
+        let particles = [];
+        let floatingTexts = [];
+        let clouds = []; // 雲朵
+        let flowers = []; // 草地上的鮮花
+
+        // 生成靜態卡通雲朵
+        function initClouds() {
+            clouds = [];
+            for (let i = 0; i < 6; i++) {
+                clouds.push({
+                    x: Math.random() * GAME_WIDTH,
+                    y: Math.random() * (GAME_HEIGHT * 0.4),
+                    size: Math.random() * 40 + 60,
+                    speed: Math.random() * 0.3 + 0.1,
+                    color: `rgba(255, 255, 255, ${Math.random() * 0.4 + 0.5})`
+                });
+            }
+        }
+
+        function initFlowers() {
+            flowers = [];
+            for (let i = 0; i < 40; i++) {
+                flowers.push({
+                    x: Math.random() * GAME_WIDTH,
+                    y: Math.random() * (GAME_HEIGHT * 0.35) + GAME_HEIGHT * 0.6, // 草地範圍
+                    size: Math.random() * 6 + 4,
+                    color: `hsl(${Math.random() * 360}, 80%, 70%)` // 可愛卡通色
+                });
+            }
+        }
+
+
+        // === 3. 數學題目生成邏輯 ===
+        // 專為兒童設計，非常簡單，不出現負數
+        function generateMathQuestion(level) {
+            // Level 1 只考最基礎加減
+            const ops = level === 1 ? ['+', '-'] : ['+', '-', '×'];
+            let op = ops[Math.floor(Math.random() * ops.length)];
+            
+            let num1, num2, correct;
+
+            if (op === '+') {
+                num1 = Math.floor(Math.random() * (level * 2 + 5)) + 1; // Level 1 最大 7
+                num2 = Math.floor(Math.random() * (level * 2 + 5)) + 1;
+                correct = num1 + num2;
+            } else if (op === '-') {
+                num1 = Math.floor(Math.random() * (level * 3 + 8)) + 5; // Level 1 最大 13
+                num2 = Math.floor(Math.random() * (num1 - 1)) + 1; // 確保不出現負數與 0
+                correct = num1 - num2;
+            } else { // 乘法
+                num1 = Math.floor(Math.random() * 5) + 2; // 2-6
+                num2 = Math.floor(Math.random() * 9) + 1; // 1-9
+                correct = num1 * num2;
+            }
+
+            // 生成兩個干擾答案
+            let d1 = correct + (Math.random() > 0.5 ? 1 : -1) * (Math.floor(Math.random() * 2) + 1);
+            if (d1 <= 0 || d1 === correct) d1 = correct + 2;
+            
+            let d2 = correct + (Math.random() > 0.5 ? 2 : -2) * (Math.floor(Math.random() * 3) + 2);
+            if (d2 <= 0 || d2 === d1 || d2 === correct) d2 = correct + 4;
+
+            const choices = [correct, d1, d2];
+            // 洗牌
+            for (let i = choices.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [choices[i], choices[j]] = [choices[j], choices[i]];
+            }
+
+            return {
+                expr: `${num1} ${op} ${num2} = ?`,
+                correct: correct,
+                choices: choices
+            };
+        }
+
+
+        // === 4. 機器人生成與動畫 (加入生動走路動畫) ===
+        // 卡通玩具紙箱機器人造型，非常逗趣
+        class Robot {
+            constructor() {
+                this.width = 110;
+                this.height = 140;
+                // 從螢幕右側出生
+                this.x = GAME_WIDTH + this.width;
+                // 限制生成在草地內
+                this.y = Math.random() * (GAME_HEIGHT * 0.3) + GAME_HEIGHT * 0.6;
+                
+                // 速度緩慢且柔和
+                this.speed = 1.1 + (gameState.level * 0.15);
+                
+                // 數學資料
+                this.math = generateMathQuestion(gameState.level);
+                
+                // 動畫相關
+                this.animTime = Math.random() * 100;
+                this.isWrongHurt = false; // 是否答錯閃爍中
+                this.hurtTimer = 0;
+
+                // 玩具黃色小鴨靶牌 (答案牌)
+                this.bubbles = [
+                    { yOffset: -50, val: this.math.choices[0], isCorrect: this.math.choices[0] === this.math.correct },
+                    { yOffset: -20, val: this.math.choices[1], isCorrect: this.math.choices[1] === this.math.correct },
+                    { yOffset: 10, val: this.math.choices[2], isCorrect: this.math.choices[2] === this.math.correct }
+                ];
+            }
+
+            update(dt) {
+                this.x -= this.speed;
+                this.animTime += 0.07; // 控制走路速度動畫
+
+                // 答錯閃爍處理
+                if (this.isWrongHurt) {
+                    this.hurtTimer -= dt;
+                    if (this.hurtTimer <= 0) {
+                        this.isWrongHurt = false;
+                    }
+                }
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+
+                // 卡通走路上下起伏顛簸 (增加逗趣感)
+                const bob = Math.sin(this.animTime * 2) * 4;
+                ctx.translate(0, bob);
+
+                // === 繪製機器人頭上的卡通題目黑板 ===
+                ctx.fillStyle = 'rgba(10, 10, 10, 0.8)';
+                ctx.strokeStyle = this.isWrongHurt ? '#ef4444' : '#f97316';
+                ctx.lineWidth = 3;
+                
+                // 黑板路徑
+                ctx.beginPath();
+                ctx.roundRect(-80, -145, 160, 36, 10);
+                ctx.fill();
+                ctx.stroke();
+
+                // 算式文字
+                ctx.fillStyle = '#fef08a'; // 亮橙黃色
+                ctx.font = 'bold 20px "Fredoka One", "Noto Sans TC"';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(this.math.expr, 0, -126);
+
+                // === 繪製卡通機器人身體 (玩具發條人) ===
+                // 頭 (卡通小方塊)
+                ctx.fillStyle = this.isWrongHurt ? '#ef4444' : '#64748b';
+                ctx.strokeStyle = '#475569';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.roundRect(-22, -100, 44, 30, 6);
+                ctx.fill();
+                ctx.stroke();
+
+                // 眼睛 (單眼發光，可愛感)
+                ctx.fillStyle = '#fff';
+                ctx.beginPath();
+                ctx.arc(-10, -85, 4, 0, Math.PI * 2);
+                ctx.arc(10, -85, 4, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = this.isWrongHurt ? '#b91c1c' : '#38bdf8';
+                ctx.beginPath();
+                ctx.arc(-10, -85, 2.5, 0, Math.PI * 2);
+                ctx.arc(10, -85, 2.5, 0, Math.PI * 2);
+                ctx.fill();
+
+                // 身體 (小紙箱)
+                ctx.fillStyle = this.isWrongHurt ? '#7f1d1d' : '#94a3b8';
+                ctx.beginPath();
+                ctx.roundRect(-30, -65, 60, 65, 12);
+                ctx.fill();
+                ctx.stroke();
+
+                // === 行走動畫 (手臂與腿部擺動) ===
+                // 卡通走路擺動幅度
+                const swing = Math.sin(this.animTime) * 0.8; // 擺動幅度
+
+                // 腿部擺動 (玩具紙箱腿)
+                ctx.fillStyle = '#1e293b';
+                // 左腿
+                ctx.save();
+                ctx.translate(-15, -1); // 腿部樞紐
+                ctx.rotate(swing); // 前後擺動
+                ctx.fillRect(-5, 0, 10, 20); // 卡通腿
+                ctx.restore();
+                
+                // 右腿
+                ctx.save();
+                ctx.translate(15, -1);
+                ctx.rotate(-swing); // 相反擺動
+                ctx.fillRect(-5, 0, 10, 20);
+                ctx.restore();
+
+                // 手臂擺動 (玩具手臂)
+                ctx.fillStyle = '#475569';
+                // 左臂
+                ctx.save();
+                ctx.translate(-30, -50); // 手臂樞紐
+                ctx.rotate(-swing * 0.7); // 手臂擺動幅度小一點
+                ctx.fillRect(-6, 0, 8, 30); // 玩具手臂
+                ctx.restore();
+                
+                // 右臂
+                ctx.save();
+                ctx.translate(30, -50);
+                ctx.rotate(swing * 0.7);
+                ctx.fillRect(-2, 0, 8, 30);
+                ctx.restore();
+
+                // === 繪製卡通機器人身上游動的玩具鴨子靶牌 ===
+                // 卡通小鴨靶牌是答案區域
+                this.bubbles.forEach((b, index) => {
+                    ctx.save();
+                    ctx.translate(0, b.yOffset);
+                    
+                    // 靶牌外圈 (水波紋效果)
+                    const bobY = Math.sin(this.animTime + index) * 3;
+                    ctx.fillStyle = this.isWrongHurt ? 'rgba(239, 68, 68, 0.2)' : 'rgba(110, 110, 110, 0.1)';
+                    ctx.beginPath();
+                    ctx.roundRect(-25, bobY - 12, 50, 24, 6);
+                    ctx.fill();
+
+                    // === 玩具黃色小鴨 (靶牌上的可愛公仔) ===
+                    ctx.save();
+                    ctx.translate(0, bobY); // 小鴨隨波游動
+                    // 鴨身
+                    ctx.fillStyle = '#fbbf24'; // 卡通黃
+                    ctx.strokeStyle = '#d97706';
+                    ctx.lineWidth = 1.5;
+                    ctx.beginPath();
+                    ctx.ellipse(0, 0, 16, 11, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.stroke();
+                    // 鴨頭
+                    ctx.beginPath();
+                    ctx.arc(10, -9, 8, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.stroke();
+                    // 鴨嘴
+                    ctx.fillStyle = '#f97316';
+                    ctx.beginPath();
+                    ctx.moveTo(17, -10); ctx.lineTo(25, -8); ctx.lineTo(17, -6);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.stroke();
+                    // 鴨眼
+                    ctx.fillStyle = '#000';
+                    ctx.beginPath();
+                    ctx.arc(11, -11, 1.5, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // === 小鴨身上的答案數字 ===
+                    ctx.fillStyle = '#fff';
+                    ctx.font = 'bold 16px "Fredoka One", sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(b.val, 0, 1);
+                    
+                    ctx.restore();
+                    ctx.restore();
+                });
+
+                ctx.restore();
+            }
+
+            // 取得每個小鴨靶牌在世界坐標系下的碰撞區域圓心，便於與子彈做碰撞檢測
+            getBubbleHitbox(index) {
+                const bob = Math.sin(this.animTime * 2) * 4; // 機器人上下起伏
+                const bY = this.bubbles[index].yOffset + bob;
+                const bobY = Math.sin(this.animTime + index) * 3; // 小鴨游動
+
+                return {
+                    centerX: this.x,
+                    centerY: this.y + bY + bobY,
+                    width: 50,
+                    height: 24,
+                    isCorrect: this.bubbles[index].isCorrect
+                };
+            }
+        }
+
+
+        // === 5. 子彈類別 ===
+        // 卡通玩具氣槍軟彈或吸盤
+        class Bullet {
+            constructor(x, y, targetX, targetY) {
+                this.x = x;
+                this.y = y;
+                this.radius = 6;
+                this.speed = 12;
+
+                // 卡通玩具軟彈造型
+                if (targetX !== undefined && targetY !== undefined) {
+                    const angle = Math.atan2(targetY - y, targetX - x);
+                    this.vx = Math.cos(angle) * this.speed;
+                    this.vy = Math.sin(angle) * this.speed;
+                } else {
+                    this.vx = this.speed; // 農場版筆直向前發射
+                    this.vy = 0;
+                }
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+            }
+
+            draw() {
+                ctx.save();
+                // 玩具彈發光效果，可愛吸盤彈
+                const grad = ctx.createRadialGradient(this.x, this.y, 1, this.x, this.y, this.radius * 2);
+                grad.addColorStop(0, '#ffffff');
+                grad.addColorStop(0.3, '#f97316'); // 可愛亮橙色彈
+                grad.addColorStop(1, 'rgba(249, 115, 22, 0)');
+                
+                ctx.fillStyle = grad;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius * 2, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+
+        // === 6. 特效與浮空文字 ===
+        // 可愛卡通爆炸、鮮花與星星粒子
+        class Particle {
+            constructor(x, y, color) {
+                this.x = x;
+                this.y = y;
+                this.color = color;
+                this.size = Math.random() * 4 + 3;
+                const angle = Math.random() * Math.PI * 2;
+                const speed = Math.random() * 5 + 1.5;
+                this.vx = Math.cos(angle) * speed;
+                this.vy = Math.sin(angle) * speed;
+                this.alpha = 1;
+                this.decay = Math.random() * 0.03 + 0.015;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.vy += 0.05; // 重力
+                this.alpha -= this.decay;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.globalAlpha = this.alpha;
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                // 星星粒子或花朵粒子
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        // 浮空分數提示 (例如：+10, Yay!, Oops!)
+        class FloatingText {
+            constructor(x, y, text, color) {
+                this.x = x;
+                this.y = y;
+                this.text = text;
+                this.color = color || '#fbbf24';
+                this.alpha = 1;
+                this.vy = -1.2;
+            }
+
+            update() {
+                this.y += this.vy;
+                this.alpha -= 0.02;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.globalAlpha = this.alpha;
+                ctx.fillStyle = this.color;
+                ctx.font = '900 24px "Fredoka One", "Noto Sans TC"';
+                ctx.textAlign = 'center';
+                ctx.fillText(this.text, this.x, this.y);
+                ctx.restore();
+            }
+        }
+
+        function createExplosion(x, y, color, count = 12) {
+            for (let i = 0; i < count; i++) {
+                particles.push(new Particle(x, y, color));
+            }
+        }
+
+
+        // === 7. 畫玩家小苗防衛者角色 ===
+        // 卡通農場版，小苗在花盆中
+        function drawPlayer() {
+            ctx.save();
+            ctx.translate(player.x, player.y);
+
+            // 卡通花盆
+            ctx.fillStyle = '#b45309'; // 陶土色花盆
+            ctx.strokeStyle = '#a16207';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(-18, 30); ctx.lineTo(18, 30); ctx.lineTo(12, 5); ctx.lineTo(-12, 5);
+            ctx.closePath();
+            ctx.fill(); ctx.stroke();
+            
+            // 花盆上印著愛心
+            ctx.fillStyle = '#fbbf24';
+            ctx.font = 'bold 14px "Fredoka One", cursive';
+            ctx.textAlign = 'center';
+            ctx.fillText('❤', 0, 22);
+
+            // 土壤
+            ctx.fillStyle = '#7c2d12'; // 泥土色
+            ctx.beginPath();
+            ctx.ellipse(0, 5, 12, 4, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 小苗 (卡通嫩葉)
+            ctx.fillStyle = '#84cc16'; // 卡通嫩綠
+            ctx.strokeStyle = '#65a30d';
+            ctx.lineWidth = 2.5;
+            // 莖
+            ctx.fillRect(-2.5, -20, 5, 25);
+            // 嫩葉
+            ctx.beginPath();
+            ctx.ellipse(-10, -18, 12, 6, -Math.PI / 6, 0, Math.PI * 2);
+            ctx.fill(); ctx.stroke();
+            ctx.beginPath();
+            ctx.ellipse(10, -18, 12, 6, Math.PI / 6, 0, Math.PI * 2);
+            ctx.fill(); ctx.stroke();
+
+            // === 卡通玩具氣槍 (防衛武器) ===
+            ctx.fillStyle = '#94a3b8'; // 卡通玩具槍金屬
+            ctx.strokeStyle = '#475569';
+            ctx.lineWidth = 2;
+            ctx.fillRect(10, -10, 45, 18);
+            ctx.fillRect(15, -15, 35, 28);
+            // 槍口
+            ctx.fillStyle = '#ea580c';
+            ctx.fillRect(50, -8, 8, 14);
+
+            ctx.restore();
+        }
+
+
+        // === 8. 遊戲控制 (WASD+滑鼠+手機搖桿) ===
+
+        // 鍵盤狀態追蹤
+        const keys = { w: false, a: false, s: false, d: false, ArrowUp: false, ArrowDown: false, Space: false };
+
+        window.addEventListener('keydown', (e) => {
+            if (!gameState.isRunning) return;
+            const key = e.key === ' ' ? 'Space' : e.key;
+            if (key in keys) {
+                keys[key] = true;
+                // 空白鍵射擊
+                if (key === 'Space') {
+                    shootBullet();
+                }
+            }
+        });
+
+        window.addEventListener('keyup', (e) => {
+            const key = e.key === ' ' ? 'Space' : e.key;
+            if (key in keys) {
+                keys[key] = false;
+            }
+        });
+
+        // 處理鍵盤移動更新
+        function handleKeyboardInput() {
+            let dy = 0;
+            if (keys.w || keys.ArrowUp) dy = -1;
+            if (keys.s || keys.ArrowDown) dy = 1;
+            // 農場版只需上下移動
+
+            player.vy = dy * player.speed;
+        }
+
+        // --- 虛擬搖桿移動邏輯 (適合手機端) ---
+        const joystickBoundary = document.getElementById('joystick-boundary');
+        const joystickKnob = document.getElementById('joystick-knob');
+        let isJoystickActive = false;
+        let joystickCenter = { x: 0, y: 0 };
+        let joystickVector = { x: 0, y: 0 };
+
+        joystickBoundary.addEventListener('touchstart', (e) => {
+            isJoystickActive = true;
+            const rect = joystickBoundary.getBoundingClientRect();
+            // 記錄搖桿的中心點坐標
+            joystickCenter = {
+                x: rect.left + rect.width / 2,
+                y: rect.top + rect.height / 2
+            };
+            handleJoystickMove(e.targetTouches[0]);
+        });
+
+        window.addEventListener('touchmove', (e) => {
+            if (!isJoystickActive) return;
+            for (let i = 0; i < e.touches.length; i++) {
+                if (e.touches[i].clientX < window.innerWidth / 2) {
+                    handleJoystickMove(e.touches[i]);
+                    break;
+                }
+            }
+        }, { passive: false });
+
+        window.addEventListener('touchend', () => {
+            if (!isJoystickActive) return;
+            isJoystickActive = false;
+            joystickKnob.style.top = '50%';
+            joystickKnob.style.transform = 'translate(-50%, -50%)';
+            joystickVector = { x: 0, y: 0 };
+        });
+
+        function handleJoystickMove(touch) {
+            const dy = touch.clientY - joystickCenter.y;
+            const maxRadius = 40; // 限制移動最大半徑
+
+            if (dy === 0) return;
+
+            // 計算並限制搖桿上下移動量
+            let moveY = Math.min(Math.abs(dy), maxRadius) * Math.sign(dy);
+
+            // 更新旋鈕視覺位置 (農場版只需上下)
+            joystickKnob.style.transform = `translate(-50%, calc(-50% + ${moveY}px))`;
+
+            // 設定移動量向量 上下 (-1 to 1)
+            joystickVector.y = moveY / maxRadius;
+        }
+
+        // --- 射擊觸發功能 ---
+        function shootBullet(targetX, targetY) {
+            // 從玩具氣槍口發射 (player.x + 55, player.y - 1)
+            const b = new Bullet(player.x + 55, player.y - 1, targetX, targetY);
+            bullets.push(b);
+            AudioSynth.play('pop'); // 可愛Pop開槍聲
+        }
+
+        // 觸發畫布直接點擊/觸摸射擊 (除搖桿區域外)
+        canvas.addEventListener('mousedown', (e) => {
+            if (!gameState.isRunning) return;
+            const rect = canvas.getBoundingClientRect();
+            const clickX = ((e.clientX - rect.left) / rect.width) * GAME_WIDTH;
+            const clickY = ((e.clientY - rect.top) / rect.height) * GAME_HEIGHT;
+            shootBullet(clickX, clickY);
+        });
+
+        canvas.addEventListener('touchstart', (e) => {
+            if (!gameState.isRunning) return;
+            const rect = canvas.getBoundingClientRect();
+            const touch = e.touches[0];
+            const clickX = ((touch.clientX - rect.left) / rect.width) * GAME_WIDTH;
+            const clickY = ((touch.clientY - rect.top) / rect.height) * GAME_HEIGHT;
+
+            // 確保不是點擊左側虛擬搖桿底座的重合區域
+            if (touch.clientX > window.innerWidth * 0.35) {
+                shootBullet(clickX, clickY);
+            }
+        });
+
+        // 手機右側大型射擊按鈕 (直直向前射擊)
+        document.getElementById('btn-shoot').addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (!gameState.isRunning) return;
+            shootBullet();
+        });
+
+
+        // === 9. 碰撞檢測與物理更新 ===
+        function checkCollisions() {
+            // 子彈與卡通小鴨靶牌答案水晶的碰撞
+            for (let bIdx = bullets.length - 1; bIdx >= 0; bIdx--) {
+                const bullet = bullets[bIdx];
+
+                for (let rIdx = robots.length - 1; rIdx >= 0; rIdx--) {
+                    const robot = robots[rIdx];
+
+                    let hitSomething = false;
+                    for (let i = 0; i < 3; i++) {
+                        const bBox = robot.getBubbleHitbox(i);
+                        // 子彈與靶牌碰撞 (子彈中心點在小鴨靶牌矩形範圍內)
+                        if (bullet.x >= bBox.centerX - bBox.width/2 && bullet.x <= bBox.centerX + bBox.width/2 &&
+                            bullet.y >= bBox.centerY - bBox.height/2 && bullet.y <= bBox.centerY + bBox.height/2) {
+                            
+                            hitSomething = true;
+                            
+                            if (bBox.isCorrect) {
+                                // 答對了！ Yay聲、卡通星星爆炸
+                                AudioSynth.play('yay');
+                                createExplosion(bBox.centerX, bBox.centerY, '#fbbf24', 12); // 可愛星星粒子
+                                
+                                // 分數增加
+                                gameState.score += 10;
+                                gameState.kills += 1;
+                                document.getElementById('score-val').textContent = gameState.score;
+                                floatingTexts.push(new FloatingText(bBox.centerX, bBox.centerY - 25, 'Yay! +10', '#a3e635'));
+
+                                // 消滅機器人，農場版答對即爆炸
+                                robots.splice(rIdx, 1);
+                                
+                                // 難度動態升級檢測 (每 50 分提升一級)
+                                const newLevel = Math.floor(gameState.score / 50) + 1;
+                                if (newLevel > gameState.level) {
+                                    gameState.level = newLevel;
+                                    document.getElementById('level-val').textContent = gameState.level;
+                                    AudioSynth.play('levelup');
+                                    floatingTexts.push(new FloatingText(GAME_WIDTH/2, GAME_HEIGHT/2 - 50, `升級囉! 難度 ${gameState.level}`, '#fbbf24'));
+                                }
+                            } else {
+                                // 答錯了！玩具悶沉聲、Oops文字
+                                AudioSynth.play('toy_wrong');
+                                createExplosion(bBox.centerX, bBox.centerY, '#ef4444', 8); // 紅色失敗粒子
+                                
+                                // 玩具版答錯不扣心
+                                floatingTexts.push(new FloatingText(bBox.centerX, bBox.centerY - 15, 'Oops!加油!', '#ef4444'));
+
+                                // 機器人卡通泛紅閃爍
+                                robot.isWrongHurt = true;
+                                robot.hurtTimer = 350; // 閃爍微調
+                            }
+                            break; 
+                        }
+                    }
+
+                    if (hitSomething) {
+                        bullets.splice(bIdx, 1);
+                        break; // 子彈已消耗
+                    }
+                }
+            }
+
+            // 機器人突破農場防線扣血 (左側農場小苗被嚇跑)
+            for (let rIdx = robots.length - 1; rIdx >= 0; rIdx--) {
+                const robot = robots[rIdx];
+
+                // 機器人走到最左側邊界內 (嚇跑小苗區域)
+                if (robot.x <= 150) {
+                    playerHurt(robot, rIdx);
+                }
+            }
+        }
+
+        // 玩家小苗受傷嚇跑邏輯
+        function playerHurt(robot, rIdx) {
+            AudioSynth.play('toy_hurt'); // 可愛卡通警報聲
+            createExplosion(150, robot.y, '#ef4444', 20); // 小苗被嚇跑粒子特效
+            robots.splice(rIdx, 1);
+
+            gameState.hp -= 1;
+            updateHeartsUI();
+
+            // 畫面輕微紅光震動，不嚇到
+            canvas.classList.add('bg-red-900/10');
+            setTimeout(() => canvas.classList.remove('bg-red-900/10'), 150);
+
+            // 檢查是否遊戲結束
+            if (gameState.hp <= 0) {
+                gameOver();
+            }
+        }
+
+        // 更新愛心 HTML UI 顯示 (農場版改成小苗苗)
+        function updateHeartsUI() {
+            const container = document.getElementById('hearts-container');
+            let html = '';
+            for (let i = 0; i < gameState.maxHp; i++) {
+                if (i < gameState.hp) {
+                    html += '<i class="fa-solid fa-seedling text-green-500 animate-pulse"></i>';
+                } else {
+                    html += '<i class="fa-solid fa-seedling text-slate-300 opacity-30"></i>';
+                }
+            }
+            container.innerHTML = html;
+        }
+
+
+        // === 10. 遊戲主循環 (Loop) ===
+        function update(timestamp) {
+            if (!gameState.isRunning) return;
+
+            if (!gameState.lastTime) gameState.lastTime = timestamp;
+            const dt = timestamp - gameState.lastTime;
+            gameState.lastTime = timestamp;
+
+            // 1. 卡通雲朵緩緩游動背景
+            clouds.forEach(cloud => {
+                cloud.x += cloud.speed;
+                if (cloud.x > GAME_WIDTH + cloud.size) {
+                    cloud.x = -cloud.size;
+                    cloud.y = Math.random() * (GAME_HEIGHT * 0.4);
+                }
+            });
+
+            // 2. 處理玩家上下移動
+            if (isJoystickActive) {
+                player.vy = joystickVector.y * player.speed;
+            } else {
+                handleKeyboardInput();
+            }
+            player.y += player.vy;
+
+            // 限制玩家不出草地邊界 (上下限制，左右固定)
+            player.y = Math.max(GAME_HEIGHT * 0.6 + 40, Math.min(GAME_HEIGHT - 60, player.y)); // 小苗只能在下方草地
+
+            // 3. 更新子彈
+            bullets.forEach(b => b.update());
+            bullets = bullets.filter(b => b.x < GAME_WIDTH + 50 && b.x > -50 && b.y > -50 && b.y < GAME_HEIGHT + 50);
+
+            // 4. 更新機器人及生動走路動畫
+            robots.forEach(r => r.update(dt));
+            
+            // 5. 機器人生成計時器 (農場版生成更慢更柔和)
+            gameState.spawnTimer += dt;
+            const currentInterval = Math.max(2200, gameState.spawnInterval - (gameState.level * 400));
+            if (gameState.spawnTimer >= currentInterval) {
+                robots.push(new Robot());
+                gameState.spawnTimer = 0;
+            }
+
+            // 6. 更新特效粒子與文字
+            particles.forEach(p => p.update());
+            particles = particles.filter(p => p.alpha > 0);
+
+            floatingTexts.forEach(t => t.update());
+            floatingTexts = floatingTexts.filter(t => t.alpha > 0);
+
+            // 7. 進行碰撞檢驗
+            checkCollisions();
+        }
+
+        function draw() {
+            // 清理畫布 (背景天空淺藍色)
+            ctx.fillStyle = '#e0f2fe';
+            ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+
+            // 1. 繪製卡通天空背景 (雲朵)
+            clouds.forEach(cloud => {
+                ctx.save();
+                ctx.fillStyle = cloud.color;
+                ctx.beginPath();
+                // 卡通雲朵造型 (幾個圓形組成)
+                const s = cloud.size;
+                ctx.arc(cloud.x, cloud.y, s/2, 0, Math.PI * 2);
+                ctx.arc(cloud.x + s/3, cloud.y - s/4, s/2.5, 0, Math.PI * 2);
+                ctx.arc(cloud.x + s/1.5, cloud.y, s/2, 0, Math.PI * 2);
+                ctx.fill(); ctx.restore();
+            });
+
+            // 2. 繪製卡通翠綠草地
+            const grassY = GAME_HEIGHT * 0.6; // 草地分界線
+            ctx.fillStyle = '#166534'; // 深綠色草地
+            ctx.fillRect(0, grassY, GAME_WIDTH, GAME_HEIGHT - grassY);
+            
+            // 卡通草地花紋亮色線
+            ctx.fillStyle = '#15803d'; // 亮綠色
+            ctx.beginPath();
+            ctx.roundRect(0, grassY + 5, GAME_WIDTH, 12, 6);
+            ctx.fill();
+            for (let i = 0; i < GAME_WIDTH / 80; i++) {
+                ctx.fillRect(i * 80 + 20, grassY + 30, 40, 8);
+            }
+            
+            // 遠處卡通青山
+            ctx.fillStyle = '#65a30d';
+            ctx.beginPath();
+            ctx.moveTo(0, grassY); ctx.quadraticCurveTo(GAME_WIDTH * 0.25, grassY - 120, GAME_WIDTH * 0.5, grassY); ctx.quadraticCurveTo(GAME_WIDTH * 0.75, grassY - 80, GAME_WIDTH, grassY);
+            ctx.lineTo(GAME_WIDTH, grassY); ctx.closePath(); ctx.fill();
+
+            // 3. 繪製草地上的卡通鮮花
+            flowers.forEach(flower => {
+                ctx.fillStyle = flower.color;
+                ctx.beginPath();
+                // 可愛卡通花朵造型 (星星或幾點圓形)
+                ctx.arc(flower.x, flower.y, flower.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = '#fbbf24'; // 花心
+                ctx.beginPath(); ctx.arc(flower.x, flower.y, flower.size/2.2, 0, Math.PI * 2); ctx.fill();
+            });
+
+            // 4. 繪製卡通農場左側邊界線
+            ctx.strokeStyle = 'rgba(168, 85, 247, 0.1)'; // 可愛卡通發光防線
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(150, grassY); ctx.lineTo(150, GAME_HEIGHT);
+            ctx.stroke();
+
+            // 5. 繪製子彈
+            bullets.forEach(b => b.draw());
+
+            // 6. 繪製可愛卡通機器人及走路動畫
+            robots.forEach(r => r.draw());
+
+            // 7. 繪製小苗防衛者玩家角色
+            drawPlayer();
+
+            // 8. 繪製粒子爆散與文字特效
+            particles.forEach(p => p.draw());
+            floatingTexts.forEach(t => t.draw());
+        }
+
+        function gameLoop(timestamp) {
+            update(timestamp);
+            draw();
+            if (gameState.isRunning) {
+                requestAnimationFrame(gameLoop);
+            }
+        }
+
+
+        // === 11. 遊戲開始、結束流程控制 ===
+
+        const modalOverlay = document.getElementById('modal-overlay');
+        const startScreen = document.getElementById('start-screen');
+        const gameoverScreen = document.getElementById('gameover-screen');
+        const startBtn = document.getElementById('start-game-btn');
+        const restartBtn = document.getElementById('restart-game-btn');
+        const muteBtn = document.getElementById('mute-btn');
+        const muteIcon = document.getElementById('mute-icon');
+
+        muteBtn.addEventListener('click', (e) => {
+            e.stopPropagation(); // 阻止地圖點擊觸發射擊
+            AudioSynth.muted = !AudioSynth.muted;
+            if (AudioSynth.muted) {
+                muteIcon.className = "fa-solid fa-volume-xmark";
+                muteBtn.classList.add('text-red-500');
+            } else {
+                muteIcon.className = "fa-solid fa-volume-high";
+                muteBtn.classList.remove('text-red-500');
+            }
+        });
+
+        startBtn.addEventListener('click', () => {
+            AudioSynth.init();
+            startGame();
+        });
+
+        restartBtn.addEventListener('click', () => {
+            startGame();
+        });
+
+        function startGame() {
+            // 重置遊戲狀態
+            gameState.isRunning = true;
+            gameState.score = 0;
+            gameState.level = 1;
+            gameState.hp = 3;
+            gameState.kills = 0;
+            gameState.spawnTimer = 0;
+            gameState.lastTime = 0;
+
+            document.getElementById('score-val').textContent = "0";
+            document.getElementById('level-val').textContent = "1";
+            updateHeartsUI();
+
+            // 清理數組陣列
+            bullets = [];
+            robots = [];
+            particles = [];
+            floatingTexts = [];
+
+            // 重新初始化卡通背景
+            initClouds();
+            initFlowers();
+
+            // 小苗復位上下中
+            player.x = 80;
+            player.y = (GAME_HEIGHT * 0.6 + GAME_HEIGHT) / 2; // 草地上下中央
+            player.vy = 0;
+
+            // 隱藏覆蓋面板
+            modalOverlay.classList.add('hidden');
+            startScreen.classList.add('hidden');
+            gameoverScreen.classList.add('hidden');
+
+            // 預先生成第一台
+            robots.push(new Robot());
+
+            // 啟動引擎循環
+            requestAnimationFrame(gameLoop);
+        }
+
+        function gameOver() {
+            gameState.isRunning = false;
+
+            // 設定最終成績面板
+            document.getElementById('final-score').textContent = gameState.score;
+            document.getElementById('final-kills').textContent = gameState.kills;
+
+            // 顯示彈窗
+            modalOverlay.classList.remove('hidden');
+            gameoverScreen.classList.remove('hidden');
+        }
+
+        // 初始化背景 (初始展示)
+        initClouds();
+        initFlowers();
+        draw();
+    </script>
+</body>
+</html>
